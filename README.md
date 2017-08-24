@@ -8,3 +8,5 @@ In this example we have a simple vehicle implemented which could be controlled u
 Source files for the Tuts+ tutorial: [link](http://gamedevelopment.tutsplus.com/tutorials/creating-a-simple-3d-endless-runner-game-using-three-js--cms-29157)
 
 **Available on Tuts+ 30 Aug, 2017**
+
+Demo [link](https://c9.io/juwalbose/threejs_simplecar)
