@@ -16,6 +16,7 @@ var score=0;
 var wheel_material, wheel_geometry, big_wheel_geometry;
 var damping=0.7;
 var friction=0.9;//high
+var ball;
 	
 function init() {
     createScene();
@@ -24,8 +25,7 @@ function init() {
 function createScene(){
     sceneWidth=window.innerWidth;
     sceneHeight=window.innerHeight;
-    var ground_material, ground_geometry,sun, ground;
-	camera = new THREE.PerspectiveCamera( 30, sceneWidth / sceneHeight, 0.1, 1000 );//perspective camera
+    camera = new THREE.PerspectiveCamera( 30, sceneWidth / sceneHeight, 0.1, 1000 );//perspective camera
     renderer = new THREE.WebGLRenderer({alpha:true});//renderer with transparent backdrop
     renderer.shadowMap.enabled = true;//enable shadow
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -41,7 +41,35 @@ function createScene(){
 	camera.lookAt( scene.position );
 	scene.add( camera );
 	
-	// Light
+	addWorld();
+	addVehicle();
+	addBall();
+	scene.simulate();
+	
+	window.addEventListener('resize', onWindowResize, false);//resize callback
+	document.onkeydown = handleKeyDown;
+	document.onkeyup = handleKeyUp;
+	
+	scoreText = document.createElement('div');
+	scoreText.style.position = 'absolute';
+	scoreText.style.width = 100;
+	scoreText.style.height = 100;
+	scoreText.innerHTML = "0";
+	scoreText.style.top = 80 + 'px';
+	scoreText.style.left = 100 + 'px';
+	document.body.appendChild(scoreText);
+	
+	var infoText = document.createElement('div');
+	infoText.style.position = 'absolute';
+	infoText.style.width = 100;
+	infoText.style.height = 100;
+	infoText.innerHTML = "use arrow keys to drive. collect the blue ball";
+	infoText.style.top = 60 + 'px';
+	infoText.style.left = 100 + 'px';
+	document.body.appendChild(infoText);
+};
+function addWorld(){
+	var ground_material, ground_geometry,sun, ground;
 	sun = new THREE.DirectionalLight( 0xFFFFFF );
 	sun.position.set( 20, 50, -15 );
 	sun.castShadow = true;
@@ -57,51 +85,67 @@ function createScene(){
 	//scene.add( helper );// enable to see the light cone
 	
 	ground_material = Physijs.createMaterial(
-		new THREE.MeshStandardMaterial( { color: 0x00ff00 } ),friction, .4 // low restitution
+		new THREE.MeshStandardMaterial( { color: 0x00ff00 } ),friction, .9 // low restitution
 	);
 	// Ground
 	ground = new Physijs.BoxMesh(new THREE.BoxGeometry(150, 1, 150),ground_material,0 // mass
 	);
 	ground.receiveShadow = true;
 	scene.add( ground );
-	
-	addVehicle();
-	scene.simulate();
-	
-	window.addEventListener('resize', onWindowResize, false);//resize callback
-	document.onkeydown = handleKeyDown;
-	document.onkeyup = handleKeyUp;
-	
-	scoreText = document.createElement('div');
-	scoreText.style.position = 'absolute';
-	scoreText.style.width = 100;
-	scoreText.style.height = 100;
-	scoreText.innerHTML = "0";
-	scoreText.style.top = 50 + 'px';
-	scoreText.style.left = 100 + 'px';
-	document.body.appendChild(scoreText);
-};
+	//walls
+	var wall_material = Physijs.createMaterial(
+		new THREE.MeshStandardMaterial( { color: 0x444444 } ),friction, .9 // low restitution
+	);
+	var wallHeight=10;
+	var wallLength=150;
+	var wall1 = new Physijs.BoxMesh(new THREE.BoxGeometry(wallLength, wallHeight, 2),wall_material,0 // mass
+	);
+	//wall1.castShadow = true;
+	wall1.position.y=wallHeight/2;
+	wall1.position.z=wallLength/2;
+	scene.add( wall1 );
+	var wall2 = new Physijs.BoxMesh(new THREE.BoxGeometry(wallLength, wallHeight, 2),wall_material,0 // mass
+	);
+	//wall2.castShadow = true;
+	wall2.position.y=wallHeight/2;
+	wall2.position.z=-wallLength/2;
+	scene.add( wall2 );
+	var wall3 = new Physijs.BoxMesh(new THREE.BoxGeometry(2, wallHeight, wallLength),wall_material,0 // mass
+	);
+	//wall3.castShadow = true;
+	wall3.position.y=wallHeight/2;
+	wall3.position.x=-wallLength/2;
+	scene.add( wall3 );
+	var wall4 = new Physijs.BoxMesh(new THREE.BoxGeometry(2, wallHeight, wallLength),wall_material,0 // mass
+	);
+	//wall4.castShadow = true;
+	wall4.position.y=wallHeight/2;
+	wall4.position.x=wallLength/2;
+	scene.add( wall4 );
+}
 function addVehicle(){
-	var car_material = Physijs.createMaterial(new THREE.MeshLambertMaterial({ color: 0xff6666 }),friction,.2);
-	wheel_material = Physijs.createMaterial(new THREE.MeshLambertMaterial({ color: 0xcccc00 }),friction,.5 // medium restitution
+	var car_material = Physijs.createMaterial(new THREE.MeshStandardMaterial({ color: 0xff6666 ,shading:THREE.FlatShading}),friction,.9);
+	wheel_material = Physijs.createMaterial(new THREE.MeshStandardMaterial({ color: 0xffffff ,shading:THREE.FlatShading}),friction,.6 // medium restitution
 	);
 	wheel_geometry = new THREE.CylinderGeometry( 2, 2, 1, 10 );
 		
 	car.body = new Physijs.BoxMesh(new THREE.BoxGeometry( 10, 2, 7 ),car_material,700);
 	car.body.position.y = 8;
 	car.body.castShadow = true;
+	car.body.name="cart";
 	scene.add( car.body );
 	
 	car.wheel_fm_constraint=addWheel(car.wheel_fm, new THREE.Vector3( -7.5, 6.5, 0 ),false,300);
 	car.wheel_fm_constraint.setAngularLowerLimit({ x: 0, y: -Math.PI / 8, z: 1 });
 	car.wheel_fm_constraint.setAngularUpperLimit({ x: 0, y: Math.PI / 8, z: 0 });
-	car.wheel_bl_constraint=addWheel(car.wheel_bl, new THREE.Vector3( 3.5, 6.5, 5 ),false,300);
-	car.wheel_br_constraint=addWheel(car.wheel_br, new THREE.Vector3( 3.5, 6.5, -5 ),false,300);
+	car.wheel_bl_constraint=addWheel(car.wheel_bl, new THREE.Vector3( 3.5, 6.5, 5 ),false,500);
+	car.wheel_br_constraint=addWheel(car.wheel_br, new THREE.Vector3( 3.5, 6.5, -5 ),false,500);
 	
 	car.carriage = new Physijs.BoxMesh(new THREE.BoxGeometry( 16, 7, 5 ),car_material,200);
 	car.carriage.position.y = 13;
 	car.carriage.position.x = 12;
 	car.carriage.castShadow = true;
+	car.carriage.name="cart";
 	scene.add( car.carriage );
 		
 	car.carriage_constraint = new Physijs.HingeConstraint(
@@ -142,6 +186,7 @@ function addWheel(wheel, pos, isBig, weight){
 		wheel_material,
 		weight
 	);
+	wheel.name="cart";
 	wheel.rotation.x = Math.PI / 2;
 	wheel.position.set(pos.x,pos.y,pos.z);
 	wheel.castShadow = true;
@@ -158,6 +203,37 @@ function addWheel(wheel, pos, isBig, weight){
 	wheelConstraint.setAngularLowerLimit({ x: 0, y: 0, z: 0 });
 	wheelConstraint.setAngularUpperLimit({ x: 0, y: 0, z: 0 });
 	return wheelConstraint;
+}
+function addBall(){
+	var ball_material = Physijs.createMaterial(new THREE.MeshStandardMaterial({ color: 0x0000ff ,shading:THREE.FlatShading}),friction,.9 // good restitution
+	);
+	var ball_geometry = new THREE.SphereGeometry( 2,16,16);
+		
+	ball = new Physijs.SphereMesh(ball_geometry,ball_material,20);
+	ball.castShadow = true;
+	releaseBall();
+	scene.add( ball );
+	ball.setDamping(0,0.9);
+	
+	ball.addEventListener( 'collision', onCollision);
+}
+function releaseBall(){
+	var range =10+Math.random()*30;
+	ball.position.y = 16;
+	ball.position.x = ((2*Math.floor(Math.random()*2))-1)*range;
+	ball.position.z = ((2*Math.floor(Math.random()*2))-1)*range;
+	ball.__dirtyPosition = true;//disable physics temporarily
+    
+    // You also want to cancel the object's velocity
+    ball.setLinearVelocity(new THREE.Vector3(0, 0, 0));
+    ball.setAngularVelocity(new THREE.Vector3(0, 0, 0));
+}
+function onCollision(other_object, linear_velocity, angular_velocity ){
+	if(other_object.name==="cart"){
+		score++;
+		releaseBall();
+		scoreText.innerHTML=score.toString();
+	}
 }
 function handleKeyDown(keyEvent){
     switch( keyEvent.keyCode ) {
