@@ -13,6 +13,9 @@ var dom;
 var scoreText;
 var car = {};
 var score=0;
+var wheel_material, wheel_geometry, big_wheel_geometry;
+var damping=0.7;
+var friction=0.9;//high
 	
 function init() {
     createScene();
@@ -21,7 +24,7 @@ function init() {
 function createScene(){
     sceneWidth=window.innerWidth;
     sceneHeight=window.innerHeight;
-    var ground_material, car_material, wheel_material, wheel_geometry,big_wheel_geometry, ground_geometry,sun, ground;
+    var ground_material, ground_geometry,sun, ground;
 	camera = new THREE.PerspectiveCamera( 30, sceneWidth / sceneHeight, 0.1, 1000 );//perspective camera
     renderer = new THREE.WebGLRenderer({alpha:true});//renderer with transparent backdrop
     renderer.shadowMap.enabled = true;//enable shadow
@@ -53,164 +56,16 @@ function createScene(){
 	//var helper = new THREE.CameraHelper( sun.shadow.camera );
 	//scene.add( helper );// enable to see the light cone
 	
-	var damping=0.7;
-	// Materials
 	ground_material = Physijs.createMaterial(
-		new THREE.MeshStandardMaterial( { color: 0x00ff00 } ),
-		.9, // high friction
-		.4 // low restitution
+		new THREE.MeshStandardMaterial( { color: 0x00ff00 } ),friction, .4 // low restitution
 	);
 	// Ground
-	ground = new Physijs.BoxMesh(
-		new THREE.BoxGeometry(150, 1, 150),
-		ground_material,
-		0 // mass
+	ground = new Physijs.BoxMesh(new THREE.BoxGeometry(150, 1, 150),ground_material,0 // mass
 	);
 	ground.receiveShadow = true;
 	scene.add( ground );
 	
-	// Car
-	car_material = Physijs.createMaterial(
-		new THREE.MeshLambertMaterial({ color: 0xff6666 }),
-		.9, // high friction
-		.2 // low restitution
-	);
-	wheel_material = Physijs.createMaterial(
-		new THREE.MeshLambertMaterial({ color: 0xcccc00 }),
-		.9, // high friction
-		.5 // medium restitution
-	);
-	wheel_geometry = new THREE.CylinderGeometry( 2, 2, 1, 10 );
-		
-	car.body = new Physijs.BoxMesh(
-		new THREE.BoxGeometry( 10, 2, 7 ),
-		car_material,
-		1000
-	);
-	car.body.position.y = 8;
-	car.body.castShadow = true;
-	scene.add( car.body );
-	
-	car.wheel_fm = new Physijs.CylinderMesh(
-		wheel_geometry,
-		wheel_material,
-		500
-	);
-	car.wheel_fm.rotation.x = Math.PI / 2;
-	car.wheel_fm.position.set( -7.5, 6.5, 0 );
-	car.wheel_fm.castShadow = true;
-	scene.add( car.wheel_fm );
-	car.wheel_fm.setDamping(0,damping);
-	car.wheel_fm_constraint = new Physijs.DOFConstraint(
-		car.wheel_fm, car.body, new THREE.Vector3( -7.5, 6.5, 0 )
-	);
-	scene.addConstraint( car.wheel_fm_constraint );
-	car.wheel_fm_constraint.setAngularLowerLimit({ x: 0, y: -Math.PI / 8, z: 1 });
-	car.wheel_fm_constraint.setAngularUpperLimit({ x: 0, y: Math.PI / 8, z: 0 });
-	car.wheel_bl = new Physijs.CylinderMesh(
-		wheel_geometry,
-		wheel_material,
-		500
-	);
-	car.wheel_bl.rotation.x = Math.PI / 2;
-	car.wheel_bl.position.set( 3.5, 6.5, 5 );
-	//car.wheel_bl.receiveShadow = 
-	car.wheel_bl.castShadow = true;
-	scene.add( car.wheel_bl );
-	car.wheel_bl.setDamping(0,damping);
-	car.wheel_bl_constraint = new Physijs.DOFConstraint(
-		car.wheel_bl, car.body, new THREE.Vector3( 3.5, 6.5, 5 )
-	);
-	scene.addConstraint( car.wheel_bl_constraint );
-	car.wheel_bl_constraint.setAngularLowerLimit({ x: 0, y: 0, z: 0 });
-	car.wheel_bl_constraint.setAngularUpperLimit({ x: 0, y: 0, z: 0 });
-		
-	car.wheel_br = new Physijs.CylinderMesh(
-		wheel_geometry,
-		wheel_material,
-		500
-	);
-	car.wheel_br.rotation.x = Math.PI / 2;
-	car.wheel_br.position.set( 3.5, 6.5, -5 );
-	car.wheel_br.castShadow = true;
-	scene.add( car.wheel_br );
-	car.wheel_br.setDamping(0,damping);
-	car.wheel_br_constraint = new Physijs.DOFConstraint(
-		car.wheel_br, car.body, new THREE.Vector3( 3.5, 6.5, -5 )
-	);
-	scene.addConstraint( car.wheel_br_constraint );
-	car.wheel_br_constraint.setAngularLowerLimit({ x: 0, y: 0, z: 0 });
-	car.wheel_br_constraint.setAngularUpperLimit({ x: 0, y: 0, z: 0 });
-		
-	car.carriage = new Physijs.BoxMesh(
-		new THREE.BoxGeometry( 16, 7, 5 ),
-		car_material,
-		200
-	);
-	car.carriage.position.y = 13;
-	car.carriage.position.x = 12;
-	car.carriage.castShadow = true;
-	scene.add( car.carriage );
-		
-	car.carriage_constraint = new Physijs.HingeConstraint(
-	    car.carriage, // First object to be constrained
-		car.body, // OPTIONAL second object - if omitted then physijs_mesh_1 will be constrained to the scene
-		new THREE.Vector3( 6, 0, 0 ), // point in the scene to apply the constraint
-		new THREE.Vector3( 0, 1, 0 ) // Axis along which the hinge lies - in this case it is the X axis
-	);
-	scene.addConstraint( car.carriage_constraint );
-	car.carriage_constraint.setLimits(
-		-Math.PI / 3, // minimum angle of motion, in radians
-		Math.PI / 3, // maximum angle of motion, in radians
-		0, // applied as a factor to constraint error
-		0 // controls bounce at limit (0.0 == no bounce)
-	);
-		
-		/*//this will also work
-		car.carriage_constraint = new Physijs.DOFConstraint(
-			car.carriage, car.body, new THREE.Vector3( 6, 6.5, 0 )
-		);
-		scene.addConstraint( car.carriage_constraint );
-		car.carriage_constraint.setAngularLowerLimit({ x: 0, y: -Math.PI / 3, z: -Math.PI / 3 });
-		car.carriage_constraint.setAngularUpperLimit({ x: 0, y: Math.PI / 3, z: Math.PI / 3 });
-		*/
-		
-	big_wheel_geometry = new THREE.CylinderGeometry( 4, 4, 1, 10 );
-		
-	car.carriage_wheel_bl = new Physijs.CylinderMesh(
-		big_wheel_geometry,
-		wheel_material,
-		100
-	);
-	car.carriage_wheel_bl.rotation.x = Math.PI / 2;
-	car.carriage_wheel_bl.position.set( 15, 8.3, 4 );
-	car.carriage_wheel_bl.castShadow = true;
-	scene.add( car.carriage_wheel_bl );
-	car.carriage_wheel_bl.setDamping(0,damping);
-	car.carriage_wheel_bl_constraint = new Physijs.DOFConstraint(
-		car.carriage_wheel_bl, car.carriage, new THREE.Vector3( 15, 8.3, 4 )
-	);
-	scene.addConstraint( car.carriage_wheel_bl_constraint );
-	car.carriage_wheel_bl_constraint.setAngularLowerLimit({ x: 0, y: 0, z: 1 });
-	car.carriage_wheel_bl_constraint.setAngularUpperLimit({ x: 0, y: 0, z: 0 });
-		
-	car.carriage_wheel_br = new Physijs.CylinderMesh(
-		big_wheel_geometry,
-		wheel_material,
-		100
-	);
-	car.carriage_wheel_br.rotation.x = Math.PI / 2;
-	car.carriage_wheel_br.position.set( 15, 8.3, -4 );
-	car.carriage_wheel_br.castShadow = true;
-	scene.add( car.carriage_wheel_br );
-	car.carriage_wheel_br.setDamping(0,damping);
-	car.carriage_wheel_br_constraint = new Physijs.DOFConstraint(
-		car.carriage_wheel_br, car.carriage, new THREE.Vector3( 15, 8.3, -4 )
-	);
-	scene.addConstraint( car.carriage_wheel_br_constraint );
-	car.carriage_wheel_br_constraint.setAngularLowerLimit({ x: 0, y: 0, z: 1 });
-	car.carriage_wheel_br_constraint.setAngularUpperLimit({ x: 0, y: 0, z: 0 });
-		
+	addVehicle();
 	scene.simulate();
 	
 	window.addEventListener('resize', onWindowResize, false);//resize callback
@@ -226,6 +81,84 @@ function createScene(){
 	scoreText.style.left = 100 + 'px';
 	document.body.appendChild(scoreText);
 };
+function addVehicle(){
+	var car_material = Physijs.createMaterial(new THREE.MeshLambertMaterial({ color: 0xff6666 }),friction,.2);
+	wheel_material = Physijs.createMaterial(new THREE.MeshLambertMaterial({ color: 0xcccc00 }),friction,.5 // medium restitution
+	);
+	wheel_geometry = new THREE.CylinderGeometry( 2, 2, 1, 10 );
+		
+	car.body = new Physijs.BoxMesh(new THREE.BoxGeometry( 10, 2, 7 ),car_material,700);
+	car.body.position.y = 8;
+	car.body.castShadow = true;
+	scene.add( car.body );
+	
+	car.wheel_fm_constraint=addWheel(car.wheel_fm, new THREE.Vector3( -7.5, 6.5, 0 ),false,300);
+	car.wheel_fm_constraint.setAngularLowerLimit({ x: 0, y: -Math.PI / 8, z: 1 });
+	car.wheel_fm_constraint.setAngularUpperLimit({ x: 0, y: Math.PI / 8, z: 0 });
+	car.wheel_bl_constraint=addWheel(car.wheel_bl, new THREE.Vector3( 3.5, 6.5, 5 ),false,300);
+	car.wheel_br_constraint=addWheel(car.wheel_br, new THREE.Vector3( 3.5, 6.5, -5 ),false,300);
+	
+	car.carriage = new Physijs.BoxMesh(new THREE.BoxGeometry( 16, 7, 5 ),car_material,200);
+	car.carriage.position.y = 13;
+	car.carriage.position.x = 12;
+	car.carriage.castShadow = true;
+	scene.add( car.carriage );
+		
+	car.carriage_constraint = new Physijs.HingeConstraint(
+	    car.carriage, // First object to be constrained
+		car.body, // constrained to this
+		new THREE.Vector3( 6, 0, 0 ), // at this point
+		new THREE.Vector3( 0, 1, 0 ) // along this axis
+	);
+	scene.addConstraint( car.carriage_constraint );
+	car.carriage_constraint.setLimits(
+		-Math.PI / 3, // minimum angle of motion, in radians
+		Math.PI / 3, // maximum angle of motion, in radians
+		0, // applied as a factor to constraint error
+		0 // controls bounce at limit (0.0 == no bounce)
+	);
+		/*//this will also work
+		car.carriage_constraint = new Physijs.DOFConstraint(	car.carriage, car.body, new THREE.Vector3( 6, 6.5, 0 ));
+		scene.addConstraint( car.carriage_constraint );
+		car.carriage_constraint.setAngularLowerLimit({ x: 0, y: -Math.PI / 3, z: -Math.PI / 3 });
+		car.carriage_constraint.setAngularUpperLimit({ x: 0, y: Math.PI / 3, z: Math.PI / 3 });
+		*/
+	big_wheel_geometry = new THREE.CylinderGeometry( 4, 4, 1, 10 );
+	
+	car.carriage_wheel_bl_constraint=addWheel(car.carriage_wheel_bl, new THREE.Vector3( 15, 8.3, 4 ),true,100);
+	car.carriage_wheel_bl_constraint.setAngularLowerLimit({ x: 0, y: 0, z: 1 });
+	car.carriage_wheel_bl_constraint.setAngularUpperLimit({ x: 0, y: 0, z: 0 });
+	car.carriage_wheel_br_constraint=addWheel(car.carriage_wheel_br, new THREE.Vector3( 15, 8.3, -4 ),true,100);	
+	car.carriage_wheel_br_constraint.setAngularLowerLimit({ x: 0, y: 0, z: 1 });
+	car.carriage_wheel_br_constraint.setAngularUpperLimit({ x: 0, y: 0, z: 0 });
+}
+function addWheel(wheel, pos, isBig, weight){
+	var geometry=wheel_geometry;
+	if(isBig){
+		geometry=big_wheel_geometry;
+	}
+	wheel = new Physijs.CylinderMesh(
+		geometry,
+		wheel_material,
+		weight
+	);
+	wheel.rotation.x = Math.PI / 2;
+	wheel.position.set(pos.x,pos.y,pos.z);
+	wheel.castShadow = true;
+	scene.add( wheel );
+	wheel.setDamping(0,damping);
+	var wheelConstraint = new Physijs.DOFConstraint(
+		wheel, car.body, pos
+	);
+	if(isBig){
+		wheelConstraint = new Physijs.DOFConstraint(
+		wheel, car.carriage, pos);
+	}
+	scene.addConstraint( wheelConstraint );
+	wheelConstraint.setAngularLowerLimit({ x: 0, y: 0, z: 0 });
+	wheelConstraint.setAngularUpperLimit({ x: 0, y: 0, z: 0 });
+	return wheelConstraint;
+}
 function handleKeyDown(keyEvent){
     switch( keyEvent.keyCode ) {
 		case 37:
